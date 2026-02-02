@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💌</title>
+  <style>
+    :root{
+      --bg1:#0b1220; --bg2:#1a2a4b;
+      --card:rgba(255,255,255,.08);
+      --stroke:rgba(255,255,255,.14);
+      --text:#eaf0ff; --muted:#b6c2e6;
+      --yes1:#ff4da6; --yes2:#ff2f7d;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      padding:16px;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--text);
+      background: radial-gradient(900px 600px at 50% -10%, var(--bg2), var(--bg1));
+    }
+    .card{
+      width:min(520px, 100%);
+      background:var(--card);
+      border:1px solid var(--stroke);
+      border-radius:22px;
+      overflow:hidden;
+      box-shadow:0 20px 70px rgba(0,0,0,.45);
+      backdrop-filter: blur(10px);
+    }
+    .imgwrap{
+      width:100%;
+      aspect-ratio: 9 / 16;
+      background: rgba(255,255,255,.06);
+      display:grid;
+      place-items:center;
+    }
+    img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .content{
+      padding:18px 18px 22px;
+      text-align:center;
+    }
+    .step{
+      font-size:14px;
+      color:var(--muted);
+      letter-spacing:.2px;
+      margin-bottom:8px;
+    }
+    h1{
+      margin:6px 0 8px;
+      font-size:24px;
+      line-height:1.2;
+    }
+    p{
+      margin:0 0 14px;
+      color:var(--muted);
+      font-size:15px;
+    }
+    .btnrow{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:6px;
+    }
+    button{
+      height:52px;
+      border-radius:14px;
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,.07);
+      color:var(--text);
+      font-size:16px;
+      font-weight:700;
+      cursor:pointer;
+      transition: transform .12s ease, filter .12s ease;
+      touch-action: manipulation;
+    }
+    button:active{ transform: scale(.98); }
+    .yes{
+      border:none;
+      background: linear-gradient(180deg, var(--yes1), var(--yes2));
+    }
+    .full{
+      grid-column: 1 / -1;
+    }
+
+    /* Final screen */
+    .finalTitle{
+      font-size:28px;
+      margin:10px 0 10px;
+    }
+    .small{
+      font-size:14px;
+      color:var(--muted);
+    }
+
+    /* Confetti canvas */
+    canvas#confetti{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      display:none;
+    }
+
+    /* Hide image on early steps if you want:
+       Uncomment to show a softer look until final:
+    .imgwrap img { filter: saturate(0.95) contrast(1.02); }
+    */
+  </style>
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+
+  <div class="card">
+    <div class="imgwrap" id="imageWrap"
+    style="display:none;">
+      <!-- Put your beach photo with her name as: beach -->
+      <img id="heroImg" src="beach.png" alt="Beach photo" />
+    </div>
+
+    <div class="content">
+      <div class="step" id="stepLabel">Step 1/3</div>
+      <h1 id="question">Is this Kritika? 😊</h1>
+      <p id="subtext">Please answer honestly…</p>
+
+      <div class="btnrow" id="buttons">
+        <button class="yes" id="yesBtn">Yes 💖</button>
+        <button id="noBtn">No 🙈</button>
+      </div>
+
+      <div id="finalArea" style="display:none;">
+        <div class="finalTitle">Yaaay!!! ❤️❤️❤️</div>
+        <div class="small">I got the girl, and I don't think anyone's luckier than me 🥹</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // --- State machine ---
+  // steps: 0 = "Is this Kritika?"
+  //        1 = "Can I ask you a question?"
+  //        2 = "Will you be my Valentine?" (+ are-you-sure loop on No)
+  let step = 0;
+
+  // How many times she has clicked "No" on the Valentine question
+  let valentineNoCount = 0;
+
+  const stepLabel = document.getElementById("stepLabel");
+  const question = document.getElementById("question");
+  const subtext = document.getElementById("subtext");
+  const buttons = document.getElementById("buttons");
+  const finalArea = document.getElementById("finalArea");
+  const yesBtn = document.getElementById("yesBtn");
+  const noBtn = document.getElementById("noBtn");
+
+  function render() {
+    if (step === 0) {
+      stepLabel.textContent = "Step 1/3";
+      question.textContent = "Is this Kritika? 😊";
+      subtext.textContent = "Please answer honestly…";
+      yesBtn.textContent = "Yes 💖";
+      noBtn.textContent = "No 🙈";
+      valentineNoCount = 0;
+    }
+
+    if (step === 1) {
+      stepLabel.textContent = "Step 2/3";
+      question.textContent = "Can I ask you a question? 🥺";
+      subtext.textContent = "Just one…";
+      yesBtn.textContent = "Okay ✅";
+      noBtn.textContent = "No 🙈";
+    }
+
+    if (step === 2) {
+      stepLabel.textContent = "Step 3/3";
+      question.textContent = "Will you be my Valentine? 💌";
+      subtext.textContent = "Say yes? 😭❤️";
+      yesBtn.textContent = "Yes 💖";
+      noBtn.textContent = "No 🙈";
+    }
+  }
+
+  function goFinal() {
+    // Hide buttons + step label, show final message + confetti
+    stepLabel.style.display = "none";
+    question.style.display = "none";
+    subtext.style.display = "none";
+    buttons.style.display = "none";
+    finalArea.style.display = "block";
+    document.getElementById("imageWrap").style.display = "block";
+    finalArea.style.display = "block";
+    startConfetti();
+  }
+
+  // --- Button handlers ---
+  yesBtn.addEventListener("click", () => {
+    if (step === 0) {
+      step = 1;
+      render();
+      return;
+    }
+
+    if (step === 1) {
+      step = 2;
+      render();
+      return;
+    }
+
+    // step === 2 => YES on valentine
+    goFinal();
+  });
+
+  noBtn.addEventListener("click", () => {
+    if (step === 0) {
+      // Keep it playful: if she presses no here, ask again but don't break flow
+      question.textContent = "Are you sure? 😄";
+      subtext.textContent = "It really looks like her…";
+      return;
+    }
+
+    if (step === 1) {
+      // If she says no to "Can I ask you a question?"
+      question.textContent = "Pleaseee? 🥺";
+      subtext.textContent = "Just one small question…";
+      return;
+    }
+
+    // step === 2 (valentine) => No => ask "are you sure" 3 times
+    valentineNoCount++;
+
+    if (valentineNoCount === 1) {
+      question.textContent = "Are you sure? 🥺";
+      subtext.textContent = "Think again…";
+      noBtn.textContent = "Still No 🙈";
+      return;
+    }
+
+    if (valentineNoCount === 2) {
+      question.textContent = "Really sure?? 😭";
+      subtext.textContent = "I’ll be sad…";
+      noBtn.textContent = "No (final) 🙈";
+      return;
+    }
+
+    // Third "No"  -> show goodbye message (as you requested)
+    showGoodbye();
+  });
+
+  function showGoodbye() {
+    stepLabel.style.display = "none";
+    question.textContent = "I'm sad 😭";
+    subtext.textContent = "But I understand. See you later!";
+    buttons.style.display = "none";
+    finalArea.style.display = "block";
+    document.getElementById("imageWrap").style.display = "none";
+  }
+
+  // initial render
+  render();
+
+  // --- Confetti (no libraries) ---
+  const canvas = document.getElementById("confetti");
+  const ctx = canvas.getContext("2d");
+  let confetti = [];
+  let running = false;
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function startConfetti() {
+    canvas.style.display = "block";
+    confetti = Array.from({ length: 220 }, () => ({
+      x: Math.random() * canvas.width,
+      y: -20 - Math.random() * 200,
+      r: 3 + Math.random() * 6,
+      vx: -2 + Math.random() * 4,
+      vy: 2 + Math.random() * 5,
+      a: Math.random() * Math.PI * 2,
+      va: -0.25 + Math.random() * 0.5,
+      hue: Math.floor(Math.random() * 360)
+    }));
+    if (!running) {
+      running = true;
+      requestAnimationFrame(tick);
+    }
+    setTimeout(() => {
+      running = false;
+      canvas.style.display = "none";
+    }, 3800);
+  }
+
+  function tick() {
+    if (!running) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (const p of confetti) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.a += p.va;
+
+      if (p.y > canvas.height + 30) p.y = -20;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.a);
+      ctx.fillStyle = `hsl(${p.hue}, 90%, 60%)`;
+      ctx.fillRect(-p.r, -p.r, p.r * 2, p.r * 2);
+      ctx.restore();
+    }
+
+    requestAnimationFrame(tick);
+  }
+</script>
+</body>
+</html>
